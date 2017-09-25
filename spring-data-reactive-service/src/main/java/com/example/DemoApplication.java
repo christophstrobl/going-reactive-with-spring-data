@@ -19,6 +19,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.util.function.Tuple2;
+import rx.Observable;
 
 import java.time.Duration;
 import java.util.Random;
@@ -73,13 +74,20 @@ public class DemoApplication implements CommandLineRunner {
 		Flux<Person> fluxPersons(String name) {
 			return repository.findAllByName(name);
 		}
+
+		@GetMapping("/rx") /* curl localhost:8080/rx?name=Eddard */
+		Observable<Person> rxPersons(String name) {
+			return repository.findByName(name);
+		}
+
+		// TODO: It would be really cool if we could just stream the data!
 	}
 
 	interface PersonRepository extends ReactiveCrudRepository<Person, String> {
 
 		Flux<Person> findAllByName(String name);
 
-		// TODO: Like RxJava? Ok - let's use Observable instead of Flux.
+		Observable<Person> findByName(String name);
 	}
 
 	@Document
