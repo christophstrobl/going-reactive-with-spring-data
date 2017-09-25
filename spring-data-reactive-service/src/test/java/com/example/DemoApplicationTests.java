@@ -15,17 +15,39 @@
  */
 package com.example;
 
+import reactor.test.StepVerifier;
+
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+
+import com.example.DemoApplication.Person;
+import com.example.DemoApplication.PersonRepository;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
 public class DemoApplicationTests {
 
+	@Autowired PersonRepository repository;
+
 	@Test
-	public void contextLoads() {
+	public void contextLoads() {}
+
+	@Test // save and find aria stark - could be tough
+	public void saveAndFindAll() {
+
+		// save aria and assert it has really been done
+		StepVerifier.create(repository.save(new Person("Aria"))) //
+				.expectNextCount(1) //
+				.verifyComplete();
+
+		// and load her afterwards
+		StepVerifier.create(repository.findAllByName("Aria").take(1)) //
+				.consumeNextWith(value -> Assert.assertTrue(value.getName().equals("Aria"))) //
+				.verifyComplete();
 	}
 
 }
