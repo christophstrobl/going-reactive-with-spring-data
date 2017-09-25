@@ -32,6 +32,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.config.EnableReactiveMongoRepositories;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
 @EnableReactiveMongoRepositories(considerNestedRepositories = true)
@@ -61,10 +63,23 @@ public class DemoApplication implements CommandLineRunner {
 		System.out.println("Winter is Coming!");
 	}
 
-	// TODO: Let's expose the data we continuously create via WebFlux.
+	@RestController
+	@RequiredArgsConstructor
+	static class PersonController {
+
+		final PersonRepository repository;
+
+		@GetMapping("/") /* curl localhost:8080/?name=Eddard */
+		Flux<Person> fluxPersons(String name) {
+			return repository.findAllByName(name);
+		}
+	}
 
 	interface PersonRepository extends ReactiveCrudRepository<Person, String> {
 
+		Flux<Person> findAllByName(String name);
+
+		// TODO: Like RxJava? Ok - let's use Observable instead of Flux.
 	}
 
 	@Document
