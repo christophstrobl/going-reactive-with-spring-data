@@ -18,16 +18,20 @@ package com.example;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
+import reactor.util.function.Tuple2;
 
+import java.time.Duration;
 import java.util.Random;
 import java.util.stream.Stream;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.repository.config.EnableReactiveMongoRepositories;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 
 @SpringBootApplication
 @EnableReactiveMongoRepositories(considerNestedRepositories = true)
@@ -37,6 +41,8 @@ public class DemoApplication implements CommandLineRunner {
 		SpringApplication.run(DemoApplication.class, args);
 	}
 
+	@Autowired PersonRepository repository;
+
 	@Override
 	public void run(String... args) throws Exception {
 
@@ -45,9 +51,20 @@ public class DemoApplication implements CommandLineRunner {
 		Random ramdom = new Random();
 		Flux<Person> starks = Flux.fromStream(Stream.generate(() -> names[ramdom.nextInt(names.length)]).map(Person::new));
 
-		// TODO: we actually need to to something with the people here !
+		Flux.interval(Duration.ofSeconds(1)) //
+				.zipWith(starks) //
+				.map(Tuple2::getT2) //
+				.flatMap(repository::save) //
+				.doOnNext(System.out::println) //
+				.subscribe();
 
 		System.out.println("Winter is Coming!");
+	}
+
+	// TODO: Let's expose the data we continuously create via WebFlux.
+
+	interface PersonRepository extends ReactiveCrudRepository<Person, String> {
+
 	}
 
 	@Document
