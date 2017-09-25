@@ -18,8 +18,10 @@ package com.example;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import rx.Observable;
+import rx.internal.reactivestreams.PublisherAdapter;
 
 import java.time.Duration;
 import java.util.Random;
@@ -29,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.CollectionOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -37,8 +40,12 @@ import org.springframework.data.mongodb.repository.Tailable;
 import org.springframework.data.mongodb.repository.config.EnableReactiveMongoRepositories;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.server.RequestPredicates;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.RouterFunctions;
+import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.ServerResponse;
 
 @SpringBootApplication
 @EnableReactiveMongoRepositories(considerNestedRepositories = true)
@@ -71,28 +78,39 @@ public class DemoApplication implements CommandLineRunner {
 		System.out.println("Winter is Coming!");
 	}
 
-	@RestController
+	@Bean
+	RouterFunction<ServerResponse> routerFunction(PersonHandler requestHandler) {
+
+		return RouterFunctions //
+				.route(RequestPredicates.GET("/"), requestHandler::fluxPersons)
+				.andRoute(RequestPredicates.GET("/rx"), requestHandler::rxPersons)
+				.andRoute(RequestPredicates.GET("/stream"), requestHandler::streamPersons);
+	}
+
+	@Component
 	@RequiredArgsConstructor
-	static class PersonController {
+	static class PersonHandler {
 
-		final PersonRepository repository;
+		final PersonRepository personRepository;
 
-		@GetMapping("/") /* curl localhost:8080/?name=Eddard */
-		Flux<Person> fluxPersons(String name) {
-			return repository.findAllByName(name);
+		Mono<ServerResponse> fluxPersons(ServerRequest request) {
+
+			return ServerResponse.ok() //
+					.body(personRepository.findAllByName(request.queryParam("name").orElse("")), Person.class);
 		}
 
-		@GetMapping("/rx") /* curl localhost:8080/rx?name=Eddard */
-		Observable<Person> rxPersons(String name) {
-			return repository.findByName(name);
+		Mono<ServerResponse> rxPersons(ServerRequest request) {
+
+			return ServerResponse.ok() //
+					.body(new PublisherAdapter(personRepository.findByName(request.queryParam("name").orElse(""))), Person.class);
 		}
 
-		@GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE) /* curl localhost:8080/stream */
-		Flux<Person> streamPersons() {
-			return repository.findBy().share();
-		}
+		Mono<ServerResponse> streamPersons(ServerRequest request) {
 
-		// TODO: maybe use more functional style RouterFunctions?
+			return ServerResponse.ok() //
+					.contentType(MediaType.TEXT_EVENT_STREAM) //
+					.body(personRepository.findBy(), Person.class);
+		}
 	}
 
 	interface PersonRepository extends ReactiveCrudRepository<Person, String> {
