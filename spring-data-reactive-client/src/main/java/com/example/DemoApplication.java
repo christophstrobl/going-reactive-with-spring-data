@@ -15,8 +15,14 @@
  */
 package com.example;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @SpringBootApplication
 public class DemoApplication {
@@ -25,5 +31,29 @@ public class DemoApplication {
 		SpringApplication.run(DemoApplication.class, args);
 	}
 
-	// TODO: Consume data from 'localhost:8080/name=Eddard' using WebClient.
+	@Bean
+	WebClient client() {
+		return WebClient.create("http://localhost:8080/");
+	}
+
+	@Bean
+	CommandLineRunner run(WebClient client) {
+
+		return (args) -> {
+
+			client.get() //
+					.uri(builder -> builder.path("/").queryParam("name", "Eddard").build()) //
+					.retrieve() //
+					.bodyToFlux(Person.class) //
+					.subscribe(System.out::println);
+		};
+
+	}
+
+	@Data
+	@AllArgsConstructor
+	static class Person {
+		String id;
+		String name;
+	}
 }
